@@ -75,44 +75,46 @@ typedef struct cJSON
 
 ### 2.2 内存结构示意图
 
-root (type=cJSON_Object)
-│
-├── child → item1 (name)
-│ ├── type = cJSON_String
-│ ├── string = "name"
-│ ├── valuestring = "张三"
-│ ├── next → item2 (age)
-│ └── prev → NULL
-│
-├── item2 (age)
-│ ├── type = cJSON_Number
-│ ├── string = "age"
-│ ├── valuedouble = 25.0
-│ ├── next → item3 (scores)
-│ └── prev → item1
-│
-├── item3 (scores)
-│ ├── type = cJSON_Array
-│ ├── string = "scores"
-│ ├── child → array_item1 (85)
-│ │ ├── type = cJSON_Number
-│ │ ├── valuedouble = 85.0
-│ │ ├── next → array_item2 (90)
-│ │ └── prev → NULL
-│ ├── next → item4 (address)
-│ └── prev → item2
-│
-└── item4 (address)
-├── type = cJSON_Object
-├── string = "address"
-├── child → addr_item1 (city)
-│ ├── type = cJSON_String
-│ ├── string = "city"
-│ ├── valuestring = "北京"
-│ ├── next → addr_item2 (zip)
-│ └── prev → NULL
-└── next → NULL
+```mermaid
+graph TD
 
+    root["root<br/>type = cJSON_Object"]
+
+    %% 第一层
+    root --> item1
+    item1["item1 (name)<br/>type = cJSON_String<br/>valuestring = 张三"]
+
+    item1 -. next .-> item2
+
+    %% 第二层
+    item2["item2 (age)<br/>type = cJSON_Number<br/>valuedouble = 25.0"]
+    item2 -. next .-> item3
+    item2 -. prev .-> item1
+
+    %% 第三层
+    item3["item3 (scores)<br/>type = cJSON_Array"]
+    item3 -. next .-> item4
+    item3 -. prev .-> item2
+
+    %% 数组 child
+    item3 --> array1
+    array1["array_item1<br/>85.0"]
+    array1 -. next .-> array2
+
+    array2["array_item2<br/>90.0"]
+
+    %% 第四层
+    item4["item4 (address)<br/>type = cJSON_Object"]
+    item4 -. prev .-> item3
+
+    %% address child
+    item4 --> addr1
+    addr1["addr_item1 (city)<br/>北京"]
+    addr1 -. next .-> addr2
+
+    addr2["addr_item2 (zip)"]
+
+```
 ### 2.3 双向链表结构图
     ┌──────────┐     ┌──────────┐     ┌──────────┐
     │  prev    │◄────│  prev    │◄────│  prev    │
@@ -133,81 +135,124 @@ root (type=cJSON_Object)
 ## 三、核心流程分析
 
 ### 3.1 cJSON_Parse函数调用链
-cJSON_Parse(const char *value)
-└── cJSON_ParseWithOpts(value, NULL, 0)
-└── parse_value(cJSON *item, const char **value)
-├── 根据第一个字符判断
-│ ├── 遇到 '{' → 调用parse_object解析对象
-│ ├── 遇到 '[' → 调用parse_array解析数组
-│ ├── 遇到 '"' → 调用parse_string解析字符串
-│ ├── 遇到 't' → 调用parse_true解析true
-│ ├── 遇到 'f' → 调用parse_false解析false
-│ ├── 遇到 'n' → 调用parse_null解析null
-│ └── 其他情况 → 调用parse_number解析数字
-└── 返回解析结果
+
+```mermaid
+flowchart TD
+
+    A["cJSON_Parse(const char* value)"]
+    B["cJSON_ParseWithOpts(value, NULL, 0)"]
+    C["parse_value(cJSON* item, const char** value)"]
+    D{"根据第一个字符判断"}
+
+    E["parse_object()"]
+    F["parse_array()"]
+    G["parse_string()"]
+    H["parse_true()"]
+    I["parse_false()"]
+    J["parse_null()"]
+    K["parse_number()"]
+
+    L["返回解析结果"]
+
+    A --> B
+    B --> C
+    C --> D
+
+    D -->| '{' | E
+    D -->| '[' | F
+    D -->| '\"' | G
+    D -->| 't' | H
+    D -->| 'f' | I
+    D -->| 'n' | J
+    D -->| 其他 | K
+
+    E --> L
+    F --> L
+    G --> L
+    H --> L
+    I --> L
+    J --> L
+    K --> L
+```
 
 ### 3.2 parse_object 流程图
-开始解析对象
-↓
-跳过 '{' 和空白字符
-↓
-←─────────────┐
-↓ │
-检查下一个字符 │
-↓ │
-如果是 '}' ──yes──→ 返回对象
-│no │
-↓ │
-解析键名 (调用parse_string)
-↓
-跳过 ':' 和空白字符
-↓
-解析值 (调用parse_value)
-↓
-将键值对添加到链表
-↓
-检查下一个字符 │
-↓ │
-如果是 ',' ──yes──┘
-│no
-↓
-如果是 '}' ──yes──→ 返回对象
-│no
-↓
-解析失败返回NULL
+
+```mermaid
+flowchart TD
+
+    A["开始解析对象"]
+    B["跳过 '{' 和空白字符"]
+    C{"检查下一个字符"}
+
+    D["返回对象"]
+    E["解析键名<br/>parse_string()"]
+    F["跳过 ':' 和空白字符"]
+    G["解析值<br/>parse_value()"]
+    H["将键值对添加到链表"]
+
+    I{"是否为 ',' ?"}
+    J{"是否为 '}' ?"}
+    K["解析失败<br/>返回 NULL"]
+
+    A --> B
+    B --> C
+
+    C -->| '}' | D
+    C -->| 其他 | E
+
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+
+    I -->| 是 | C
+    I -->| 否 | J
+
+    J -->| 是 | D
+    J -->| 否 | K
+```
 
 ### 3.3 parse_array 流程图
-开始解析数组
-↓
-跳过 '[' 和空白字符
-↓
-←─────────────┐
-↓ │
-检查下一个字符 │
-↓ │
-如果是 ']' ──yes──→ 返回数组
-│no │
-↓ │
-解析元素 (调用parse_value)
-↓
-将元素添加到链表
-↓
-检查下一个字符 │
-↓ │
-如果是 ',' ──yes──┘
-│no
-↓
-如果是 ']' ──yes──→ 返回数组
-│no
-↓
-解析失败返回NULL
+
+```mermaid
+flowchart TD
+
+    A["开始解析数组"]
+    B["跳过 '[' 和空白字符"]
+    C{"检查下一个字符"}
+
+    D["返回数组"]
+    E["解析元素<br/>parse_value()"]
+    F["将元素添加到链表"]
+
+    G{"是否为 ',' ?"}
+    H{"是否为 ']' ?"}
+    I["解析失败<br/>返回 NULL"]
+
+    A --> B
+    B --> C
+
+    C -->| ']' | D
+    C -->| 其他 | E
+
+    E --> F
+    F --> G
+
+    G -->| 是 | C
+    G -->| 否 | H
+
+    H -->| 是 | D
+    H -->| 否 | I
+```
 
 ## 四、总结
 
 ### 4.1 核心设计思想
-1.统一的数据结构：用一个结构体表示所有JSON类型
-2.链表和树形结构：next/prev实现同级遍历，child实现嵌套访问
-3.递归下降解析：语法规则与代码结构一一对应
+**1.统一的数据结构：**用一个结构体表示所有JSON类型
+
+**2.链表和树形结构：**next/prev实现同级遍历，child实现嵌套访问
+
+**3.递归下降解析：**语法规则与代码结构一一对应
 
 ### 4.2 收获
 通过分析cJSON源码，我深入理解了C语言指针和内存管理的实际应用和递归下降解析算法的实现原理，了解了如何设计简洁易用的API接口以及工业级代码的质量标准。
