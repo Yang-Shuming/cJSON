@@ -29,6 +29,7 @@ typedef struct cJSON
     /* The item's name string, if this item is the child of an object */
     char *string;          // 键名（对象成员的名称）
 } cJSON;
+```
 
 ### 1.2 成员详细说明
 | 成员 | 类型 | 说明 |
@@ -55,6 +56,7 @@ typedef struct cJSON
  #define cJSON_Raw 128
  #define cJSON_IsReference 256
  #define cJSON_StringIsConst 512
+```
 
 ## 二、数据结构可视化
 
@@ -69,8 +71,10 @@ typedef struct cJSON
 "zip": "100000"
 }
 }
+```
 
 ### 2.2 内存结构示意图
+
 root (type=cJSON_Object)
 │
 ├── child → item1 (name)
