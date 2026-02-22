@@ -139,18 +139,18 @@ graph TD
 ```mermaid
 flowchart TD
 
-    A["cJSON_Parse(const char* value)"]
-    B["cJSON_ParseWithOpts(value, NULL, 0)"]
-    C["parse_value(cJSON* item, const char** value)"]
-    D{"根据第一个字符判断"}
+    A["cJSON_Parse 函数"]
+    B["调用 cJSON_ParseWithOpts"]
+    C["调用 parse_value"]
+    D{"根据首字符判断类型"}
 
-    E["parse_object()"]
-    F["parse_array()"]
-    G["parse_string()"]
-    H["parse_true()"]
-    I["parse_false()"]
-    J["parse_null()"]
-    K["parse_number()"]
+    E["解析对象 parse_object"]
+    F["解析数组 parse_array"]
+    G["解析字符串 parse_string"]
+    H["解析 true"]
+    I["解析 false"]
+    J["解析 null"]
+    K["解析数字 parse_number"]
 
     L["返回解析结果"]
 
@@ -158,13 +158,13 @@ flowchart TD
     B --> C
     C --> D
 
-    D -->| '{' | E
-    D -->| '[' | F
-    D -->| '\"' | G
-    D -->| 't' | H
-    D -->| 'f' | I
-    D -->| 'n' | J
-    D -->| 其他 | K
+    D -->| 对象类型 | E
+    D -->| 数组类型 | F
+    D -->| 字符串类型 | G
+    D -->| true 类型 | H
+    D -->| false 类型 | I
+    D -->| null 类型 | J
+    D -->| 数字类型 | K
 
     E --> L
     F --> L
@@ -181,24 +181,24 @@ flowchart TD
 flowchart TD
 
     A["开始解析对象"]
-    B["跳过 '{' 和空白字符"]
-    C{"检查下一个字符"}
+    B["跳过起始符号 和 空白字符"]
+    C{"检查当前字符"}
 
     D["返回对象"]
-    E["解析键名<br/>parse_string()"]
-    F["跳过 ':' 和空白字符"]
-    G["解析值<br/>parse_value()"]
-    H["将键值对添加到链表"]
+    E["解析键名 调用 parse_string"]
+    F["跳过冒号 和 空白字符"]
+    G["解析值 调用 parse_value"]
+    H["将键值对加入链表"]
 
-    I{"是否为 ',' ?"}
-    J{"是否为 '}' ?"}
-    K["解析失败<br/>返回 NULL"]
+    I{"是否为 逗号"}
+    J{"是否为 结束符号"}
+    K["解析失败 返回 NULL"]
 
     A --> B
     B --> C
 
-    C -->| '}' | D
-    C -->| 其他 | E
+    C -->| 为空对象 | D
+    C -->| 继续解析 | E
 
     E --> F
     F --> G
@@ -218,21 +218,21 @@ flowchart TD
 flowchart TD
 
     A["开始解析数组"]
-    B["跳过 '[' 和空白字符"]
+    B["跳过左方括号 和 空白字符"]
     C{"检查下一个字符"}
 
     D["返回数组"]
     E["解析元素<br/>parse_value()"]
     F["将元素添加到链表"]
 
-    G{"是否为 ',' ?"}
-    H{"是否为 ']' ?"}
+    G{"是否为 逗号"}
+    H{"是否为 右方括号"}
     I["解析失败<br/>返回 NULL"]
 
     A --> B
     B --> C
 
-    C -->| ']' | D
+    C -->| 右方括号 | D
     C -->| 其他 | E
 
     E --> F
@@ -248,11 +248,11 @@ flowchart TD
 ## 四、总结
 
 ### 4.1 核心设计思想
-**1.统一的数据结构：**用一个结构体表示所有JSON类型
+**1. 统一的数据结构：**用一个结构体表示所有JSON类型
 
-**2.链表和树形结构：**next/prev实现同级遍历，child实现嵌套访问
+**2. 链表和树形结构：**next/prev实现同级遍历，child实现嵌套访问
 
-**3.递归下降解析：**语法规则与代码结构一一对应
+**3. 递归下降解析：**语法规则与代码结构一一对应
 
 ### 4.2 收获
 通过分析cJSON源码，我深入理解了C语言指针和内存管理的实际应用和递归下降解析算法的实现原理，了解了如何设计简洁易用的API接口以及工业级代码的质量标准。
