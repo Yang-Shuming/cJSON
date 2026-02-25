@@ -478,6 +478,9 @@ typedef struct
     size_t depth; /* current nesting depth (for formatted printing) */
     cJSON_bool noalloc;
     cJSON_bool format; /* is this print a formatted print */
+    /* 新增：美化打印配置 */
+    int indent_count;           /* 缩进数量（如2表示缩进2个字符） */
+    char indent_char;           /* 缩进字符（空格或制表符） */
     internal_hooks hooks;
 } printbuffer;
 
@@ -1598,8 +1601,7 @@ static cJSON_bool print_array(const cJSON * const item, printbuffer * const outp
         return false;
     }
 
-    /* Compose the output array. */
-    /* opening square bracket */
+    /* 输出左括号 */
     output_pointer = ensure(output_buffer, 1);
     if (output_pointer == NULL)
     {
@@ -1612,14 +1614,31 @@ static cJSON_bool print_array(const cJSON * const item, printbuffer * const outp
 
     while (current_element != NULL)
     {
+        if (output_buffer->format)
+        {
+            size_t i;
+            size_t indent_size = output_buffer->depth * output_buffer->indent_count;
+            output_pointer = ensure(output_buffer, indent_size);
+            if (output_pointer == NULL)
+            {
+                return false;
+            }
+            for (i = 0; i < indent_size; i++)
+            {
+                *output_pointer++ = output_buffer->indent_char;
+            }
+            output_buffer->offset += indent_size;
+        }
+
         if (!print_value(current_element, output_buffer))
         {
             return false;
         }
         update_offset(output_buffer);
+        
         if (current_element->next)
         {
-            length = (size_t) (output_buffer->format ? 2 : 1);
+            length = (size_t)(output_buffer->format ? 2 : 1);
             output_pointer = ensure(output_buffer, length + 1);
             if (output_pointer == NULL)
             {
@@ -1634,6 +1653,23 @@ static cJSON_bool print_array(const cJSON * const item, printbuffer * const outp
             output_buffer->offset += length;
         }
         current_element = current_element->next;
+    }
+
+    /* 输出右括号前的缩进 */
+    if (output_buffer->format && (output_buffer->depth > 1))
+    {
+        size_t i;
+        size_t indent_size = (output_buffer->depth - 1) * output_buffer->indent_count;
+        output_pointer = ensure(output_buffer, indent_size);
+        if (output_pointer == NULL)
+        {
+            return false;
+        }
+        for (i = 0; i < indent_size; i++)
+        {
+            *output_pointer++ = output_buffer->indent_char;
+        }
+        output_buffer->offset += indent_size;
     }
 
     output_pointer = ensure(output_buffer, 2);
@@ -1778,8 +1814,8 @@ static cJSON_bool print_object(const cJSON * const item, printbuffer * const out
         return false;
     }
 
-    /* Compose the output: */
-    length = (size_t) (output_buffer->format ? 2 : 1); /* fmt: {\n */
+    /* 输出左大括号 */
+    length = (size_t) (output_buffer->format ? 2 : 1);
     output_pointer = ensure(output_buffer, length + 1);
     if (output_pointer == NULL)
     {
@@ -1799,19 +1835,21 @@ static cJSON_bool print_object(const cJSON * const item, printbuffer * const out
         if (output_buffer->format)
         {
             size_t i;
-            output_pointer = ensure(output_buffer, output_buffer->depth);
+            /* 计算缩进：depth * indent_count */
+            size_t indent_size = output_buffer->depth * output_buffer->indent_count;
+            output_pointer = ensure(output_buffer, indent_size);
             if (output_pointer == NULL)
             {
                 return false;
             }
-            for (i = 0; i < output_buffer->depth; i++)
+            for (i = 0; i < indent_size; i++)
             {
-                *output_pointer++ = '\t';
+                *output_pointer++ = output_buffer->indent_char;
             }
-            output_buffer->offset += output_buffer->depth;
+            output_buffer->offset += indent_size;
         }
 
-        /* print key */
+        /* 打印键名 */
         if (!print_string_ptr((unsigned char*)current_item->string, output_buffer))
         {
             return false;
@@ -1827,19 +1865,19 @@ static cJSON_bool print_object(const cJSON * const item, printbuffer * const out
         *output_pointer++ = ':';
         if (output_buffer->format)
         {
-            *output_pointer++ = '\t';
+            *output_pointer++ = ' ';
         }
         output_buffer->offset += length;
 
-        /* print value */
+        /* 打印值 */
         if (!print_value(current_item, output_buffer))
         {
             return false;
         }
         update_offset(output_buffer);
 
-        /* print comma if not last */
-        length = ((size_t)(output_buffer->format ? 1 : 0) + (size_t)(current_item->next ? 1 : 0));
+        /* 打印逗号（如果不是最后一个） */
+        length = (size_t)(current_item->next ? 1 : 0);
         output_pointer = ensure(output_buffer, length + 1);
         if (output_pointer == NULL)
         {
@@ -1855,23 +1893,32 @@ static cJSON_bool print_object(const cJSON * const item, printbuffer * const out
             *output_pointer++ = '\n';
         }
         *output_pointer = '\0';
-        output_buffer->offset += length;
+        output_buffer->offset += length + (output_buffer->format ? 1 : 0);
 
         current_item = current_item->next;
     }
 
-    output_pointer = ensure(output_buffer, output_buffer->format ? (output_buffer->depth + 1) : 2);
+    /* 输出右大括号前的缩进 */
+    if (output_buffer->format && (output_buffer->depth > 1))
+    {
+        size_t i;
+        size_t indent_size = (output_buffer->depth - 1) * output_buffer->indent_count;
+        output_pointer = ensure(output_buffer, indent_size);
+        if (output_pointer == NULL)
+        {
+            return false;
+        }
+        for (i = 0; i < indent_size; i++)
+        {
+            *output_pointer++ = output_buffer->indent_char;
+        }
+        output_buffer->offset += indent_size;
+    }
+
+    output_pointer = ensure(output_buffer, 2);
     if (output_pointer == NULL)
     {
         return false;
-    }
-    if (output_buffer->format)
-    {
-        size_t i;
-        for (i = 0; i < (output_buffer->depth - 1); i++)
-        {
-            *output_pointer++ = '\t';
-        }
     }
     *output_pointer++ = '}';
     *output_pointer = '\0';
@@ -3188,4 +3235,132 @@ CJSON_PUBLIC(void) cJSON_free(void *object)
 {
     global_hooks.deallocate(object);
     object = NULL;
+}
+
+/* 美化打印JSON
+   item 要打印的cJSON对象
+   indent_count 缩进数量（如2表示缩进2个字符）
+   indent_char 缩进字符（空格' '或制表符'\t'）
+   返回美化后的JSON字符串，调用者需要用free释放
+*/
+CJSON_PUBLIC(char *) cJSON_PrintPretty(const cJSON *item, int indent_count, char indent_char)
+{
+    printbuffer buffer;
+    unsigned char *printed = NULL;
+    
+    if (item == NULL)
+    {
+        return NULL;
+    }
+    
+    /* 验证参数 */
+    if (indent_count < 0)
+    {
+        indent_count = 0;
+    }
+    if ((indent_char != ' ') && (indent_char != '\t'))
+    {
+        indent_char = ' ';  /* 默认使用空格 */
+    }
+    
+    memset(&buffer, 0, sizeof(buffer));
+    
+    /* 使用默认缓冲区大小 */
+    buffer.buffer = (unsigned char*)global_hooks.allocate(256);
+    if (buffer.buffer == NULL)
+    {
+        return NULL;
+    }
+    
+    buffer.length = 256;
+    buffer.offset = 0;
+    buffer.format = 1;           /* 启用格式化 */
+    buffer.indent_count = indent_count;
+    buffer.indent_char = indent_char;
+    buffer.noalloc = 0;
+    buffer.hooks = global_hooks;
+    
+    if (!print_value(item, &buffer))
+    {
+        global_hooks.deallocate(buffer.buffer);
+        return NULL;
+    }
+    update_offset(&buffer);
+    
+    /* 重新分配精确大小的内存 */
+    if (global_hooks.reallocate != NULL)
+    {
+        printed = (unsigned char*)global_hooks.reallocate(buffer.buffer, buffer.offset + 1);
+        if (printed == NULL)
+        {
+            global_hooks.deallocate(buffer.buffer);
+            return NULL;
+        }
+        buffer.buffer = NULL;
+    }
+    else
+    {
+        printed = (unsigned char*)global_hooks.allocate(buffer.offset + 1);
+        if (printed == NULL)
+        {
+            global_hooks.deallocate(buffer.buffer);
+            return NULL;
+        }
+        memcpy(printed, buffer.buffer, buffer.offset);
+        printed[buffer.offset] = '\0';
+        global_hooks.deallocate(buffer.buffer);
+    }
+    
+    return (char*)printed;
+}
+
+/* 带缓冲的美化打印
+   item 要打印的cJSON对象
+   prebuffer 预估的缓冲区大小
+   indent_count 缩进数量
+   indent_char 缩进字符
+   返回美化后的JSON字符串
+*/
+CJSON_PUBLIC(char *) cJSON_PrintPrettyBuffered(const cJSON *item, int prebuffer, int indent_count, char indent_char)
+{
+    printbuffer buffer;
+    
+    if ((item == NULL) || (prebuffer < 0))
+    {
+        return NULL;
+    }
+    
+    /* 验证参数 */
+    if (indent_count < 0)
+    {
+        indent_count = 0;
+    }
+    if ((indent_char != ' ') && (indent_char != '\t'))
+    {
+        indent_char = ' ';
+    }
+    
+    memset(&buffer, 0, sizeof(buffer));
+    
+    buffer.buffer = (unsigned char*)global_hooks.allocate((size_t)prebuffer);
+    if (buffer.buffer == NULL)
+    {
+        return NULL;
+    }
+    
+    buffer.length = (size_t)prebuffer;
+    buffer.offset = 0;
+    buffer.format = 1;
+    buffer.indent_count = indent_count;
+    buffer.indent_char = indent_char;
+    buffer.noalloc = 0;
+    buffer.hooks = global_hooks;
+    
+    if (!print_value(item, &buffer))
+    {
+        global_hooks.deallocate(buffer.buffer);
+        return NULL;
+    }
+    
+    return (char*)buffer.buffer;
 }

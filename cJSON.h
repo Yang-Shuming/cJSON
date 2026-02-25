@@ -61,7 +61,7 @@ then using the CJSON_API_VISIBILITY flag to "export" the same symbols the way CJ
 #endif
 
 #if defined(CJSON_HIDE_SYMBOLS)
-#define CJSON_PUBLIC(type)   type CJSON_STDCALL
+scode-server#define CJSON_PUBLIC(type)   type CJSON_STDCALL
 #elif defined(CJSON_EXPORT_SYMBOLS)
 #define CJSON_PUBLIC(type)   __declspec(dllexport) type CJSON_STDCALL
 #elif defined(CJSON_IMPORT_SYMBOLS)
@@ -167,6 +167,12 @@ CJSON_PUBLIC(char *) cJSON_PrintBuffered(const cJSON *item, int prebuffer, cJSON
 /* Render a cJSON entity to text using a buffer already allocated in memory with given length. Returns 1 on success and 0 on failure. */
 /* NOTE: cJSON is not always 100% accurate in estimating how much memory it will use, so to be safe allocate 5 bytes more than you actually need */
 CJSON_PUBLIC(cJSON_bool) cJSON_PrintPreallocated(cJSON *item, char *buffer, const int length, const cJSON_bool format);
+
+/* 新增：美化打印函数，可自定义缩进 */
+CJSON_PUBLIC(char *) cJSON_PrintPretty(const cJSON *item, int indent_count, char indent_char);
+
+/* 新增：带缓冲的美化打印函数 */
+CJSON_PUBLIC(char *) cJSON_PrintPrettyBuffered(const cJSON *item, int prebuffer, int indent_count, char indent_char);
 /* Delete a cJSON entity and all subentities. */
 CJSON_PUBLIC(void) cJSON_Delete(cJSON *item);
 
